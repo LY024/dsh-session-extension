@@ -980,23 +980,25 @@ test('批量：进入多选 → 底部条（已选 0、移动禁用）→ 点行
   assert.equal(bulk.state.moveNode.disabled, true, '0 个时「移动」必须禁用');
   assert.ok(dom.body.children.includes(bulk.state.bar), '底栏应当挂到 body');
 
-  const click = dom.listeners.get('click');
-  click({ target: { closest: () => dom.rows[0] }, preventDefault() {}, stopPropagation() {} });
+  bulk.onModifierClick({
+    button: 0,
+    ctrlKey: true,
+    target: dom.rows[0],
+    preventDefault() {},
+    stopPropagation() {},
+    stopImmediatePropagation() {},
+  });
   assert.equal(bulk.state.countNode.textContent, '已选 1 个');
   assert.equal(bulk.state.moveNode.disabled, false);
   bulk.bulkDecorate();
-  const check = dom.rows[0].querySelector(':scope > .dshsm-check');
-  assert.ok(check !== null, '选中后行首应当出现勾选圈');
-  assert.equal(check.classList.contains('dshsm-check-on'), true);
-  const otherCheck = dom.rows[1].querySelector(':scope > .dshsm-check');
-  assert.ok(otherCheck !== null, '没选的行也该有圈（空圈），方便点选');
-  assert.equal(otherCheck.classList.contains('dshsm-check-on'), false, '没选的行不该是选中态');
+  assert.equal(dom.rows[0].classList.contains('dshsm-selected'), true, '选中的行应当底色加深');
+  assert.equal(dom.rows[1].classList.contains('dshsm-selected'), false, '没选的行不该有选中底色');
+  assert.equal(dom.rows[0].querySelector(':scope > .dshsm-check'), null, '不再插入勾选圈');
 
   bulk.exitBulk();
   assert.equal(bulk.state.selecting, false);
   assert.equal(dom.body.children.length, 0, '底栏要被移除');
-  assert.equal(dom.rows[0].querySelector(':scope > .dshsm-check'), null, '勾选圈要被移除');
-  assert.equal(dom.listeners.has('click'), false, '监听要摘掉');
+  assert.equal(dom.rows[0].classList.contains('dshsm-selected'), false, '退出后底色要清掉');
   delete globalThis.document;
 });
 
@@ -1008,7 +1010,14 @@ test('批量：移动被取消时保留选中、不退出多选', async () => {
   const bulk = api.__bulk;
   bulk.state.moveSelectionFn = async () => ({ canceled: true, moved: 0, failed: 0, skipped: 0, total: 1, results: [] });
   bulk.enterBulk();
-  dom.listeners.get('click')({ target: { closest: () => dom.rows[0] }, preventDefault() {}, stopPropagation() {} });
+  bulk.onModifierClick({
+    button: 0,
+    ctrlKey: true,
+    target: dom.rows[0],
+    preventDefault() {},
+    stopPropagation() {},
+    stopImmediatePropagation() {},
+  });
   bulk.bulkMoveSelected();
   await flush();
   assert.equal(bulk.state.selecting, true, '取消不该退出多选');
@@ -1180,6 +1189,42 @@ test('Ctrl/⌘ + 左键点会话行切换多选（菜单里不再有「多选」
     api.onModifierClick({ button: 0, ctrlKey: false, target: row });
     assert.equal(api.state.selected[SESSION_ID], undefined, '没按 Ctrl 的点击不参与多选');
     api.exitBulk();
+  } finally {
+    delete globalThis.document;
+  }
+});
+
+test('多选模式：不按 Ctrl 点任意地方就退出；点已选行还不会打开会话', async () => {
+  const { doc } = makeFakeDocument();
+  doc.body.classList = { add() {}, remove() {} };
+  globalThis.document = doc;
+  try {
+    const harness = await mount({});
+    const api = harness.api.__bulk;
+    api.exitBulk();
+    const row = {
+      getAttribute: (name) => (name === 'data-row-key' ? 'session:' + SESSION_ID : null),
+      parentElement: null,
+    };
+    api.onModifierClick({ button: 0, ctrlKey: true, target: row, preventDefault() {}, stopPropagation() {} });
+    assert.equal(api.state.selected[SESSION_ID], true);
+
+    // 点已选中的行：吃掉这次点击（别打开会话），并退出多选。
+    let prevented = 0;
+    api.onBackgroundClick({
+      target: row,
+      ctrlKey: false,
+      preventDefault() { prevented += 1; },
+      stopPropagation() {},
+    });
+    assert.equal(prevented, 1, '点已选行时要拦住打开会话的默认行为');
+    assert.equal(api.state.selecting, false, '应当退出多选');
+
+    // 再进入一次，点空白（不在任何行上）也要退出。
+    api.onModifierClick({ button: 0, ctrlKey: true, target: row, preventDefault() {}, stopPropagation() {} });
+    assert.equal(api.state.selecting, true);
+    api.onBackgroundClick({ target: null, ctrlKey: false, preventDefault() {}, stopPropagation() {} });
+    assert.equal(api.state.selecting, false, '点空白也退出多选');
   } finally {
     delete globalThis.document;
   }
