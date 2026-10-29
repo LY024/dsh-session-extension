@@ -173,17 +173,19 @@ test('bundle 形状：id/工厂/导出与 slot 注册都对', async () => {
   assert.equal(typeof harness.returned, 'function', 'apply 应当返回 disposer');
 });
 
-test('idle：只渲染一个可点的菜单项', async () => {
+test('idle：只渲染一个可点的菜单项「移动」，悬停就展开子菜单', async () => {
   const harness = await mount({});
   const buttons = harness.buttons(harness.render());
   assert.equal(buttons.length, 1);
   assert.equal(buttons[0].props.role, 'menuitem');
   assert.equal(buttons[0].props.type, 'button');
   assert.equal(buttons[0].props.disabled, undefined);
-  assert.equal(textOf(buttons[0]), '移动到');
+  assert.ok(textOf(buttons[0]).includes('移动'));
+  assert.equal(typeof buttons[0].props.onMouseEnter, 'function', '悬停应当打开右侧子菜单');
+  assert.equal(typeof buttons[0].props.onMouseLeave, 'function', '移开应当收起子菜单');
 });
 
-test('点击后列出其它工作区（排除当前所在的），并可选中执行', async () => {
+test('「移动」在右侧子菜单里列出其它工作区（排除当前的），并可选中执行', async () => {
   const harness = await mount({
     '/describe': () => ({
       ok: true,
@@ -200,8 +202,15 @@ test('点击后列出其它工作区（排除当前所在的），并可选中�
   harness.buttons(harness.render())[0].props.onClick();
   await flush();
 
-  const picking = harness.buttons(harness.render());
-  const texts = picking.map(textOf);
+  const state = harness.api.__moveMenu.state();
+  assert.equal(state.phase, 'ready');
+  assert.deepEqual(state.targets.map((workspace) => workspace.id), ['ws-b', 'ws-c']);
+
+  const menu = harness.api.__moveMenu.host();
+  assert.equal(menu.props.className, 'dshsm-move-menu');
+  assert.match(String(menu.props.style.left), /px$/, '子菜单按触发元素定位');
+  const items = harness.buttons(menu);
+  const texts = items.map(textOf);
   assert.equal(texts.some((entry) => entry.includes('工作区 A')), false, '当前工作区不该出现在候选里');
   assert.ok(texts.some((entry) => entry.includes('工作区 B')));
   assert.ok(texts.some((entry) => entry.includes('工作区 C')));
@@ -210,16 +219,14 @@ test('点击后列出其它工作区（排除当前所在的），并可选中�
   assert.deepEqual(harness.calls[0], { url: PREFIX + '/describe', body: { sessionId: SESSION_ID } });
   assert.equal(harness.calls[0].url.startsWith(PREFIX), true, '应当使用主机下发的桥接前缀');
 
-  const targetIndex = textingIndex(picking, '工作区 B');
-  picking[targetIndex].props.onClick();
+  items[textingIndex(items, '工作区 B')].props.onClick();
   await flush();
 
   assert.deepEqual(harness.calls[1], {
     url: PREFIX + '/move',
     body: { sessionId: SESSION_ID, targetWorkspaceId: 'ws-b' },
   });
-  const done = harness.buttons(harness.render());
-  assert.match(textOf(done[0]), /已移动.*工作区 B/);
+  assert.equal(harness.api.__moveMenu.state().open, false, '成功后收起子菜单');
   assert.deepEqual(harness.menuOpens, [false], '成功后应当关掉菜单');
 });
 
@@ -230,7 +237,7 @@ function textingIndex(buttons, needle) {
   throw new Error('找不到按钮：' + needle);
 }
 
-test('不可移动时显示原因（disabled），且不会调 move', async () => {
+test('不可移动时子菜单里显示原因，且不会调 move', async () => {
   const harness = await mount({
     '/describe': () => ({
       ok: true,
@@ -240,10 +247,10 @@ test('不可移动时显示原因（disabled），且不会调 move', async () =
   });
   harness.buttons(harness.render())[0].props.onClick();
   await flush();
-  const buttons = harness.buttons(harness.render());
-  assert.equal(buttons.length, 1);
-  assert.equal(buttons[0].props.disabled, true);
-  assert.match(textOf(buttons[0]), /正打开着/);
+  const state = harness.api.__moveMenu.state();
+  assert.equal(state.phase, 'blocked');
+  const menu = harness.api.__moveMenu.host();
+  assert.ok(textOf(menu).includes('正打开着'), '子菜单里要说明为什么不能移动');
   assert.equal(harness.calls.length, 1, '只应当有 describe 这一次请求');
 });
 
@@ -255,8 +262,8 @@ test('选择其它目录时用 prompt 的路径调 move', async () => {
   globalThis.prompt = () => '  D:\\示例\\新目录  ';
   harness.buttons(harness.render())[0].props.onClick();
   await flush();
-  const picking = harness.buttons(harness.render());
-  picking[textingIndex(picking, '其它目录')].props.onClick();
+  const items = harness.buttons(harness.api.__moveMenu.host());
+  items[textingIndex(items, '其它目录')].props.onClick();
   await flush();
   assert.deepEqual(harness.calls[1].body, { sessionId: SESSION_ID, targetPath: 'D:\\示例\\新目录' });
 });
@@ -268,13 +275,13 @@ test('prompt 被取消时什么都不做', async () => {
   globalThis.prompt = () => null;
   harness.buttons(harness.render())[0].props.onClick();
   await flush();
-  const picking = harness.buttons(harness.render());
-  picking[textingIndex(picking, '其它目录')].props.onClick();
+  const items = harness.buttons(harness.api.__moveMenu.host());
+  items[textingIndex(items, '其它目录')].props.onClick();
   await flush();
   assert.equal(harness.calls.length, 1, '取消 prompt 不应该发起 move');
 });
 
-test('收尾待补时给出明确提示；桥接报错时显示失败原因', async () => {
+test('收尾待补时正常收起；桥接报错时子菜单里显示失败原因', async () => {
   const oneTarget = [{ id: 'ws-b', title: '工作区 B', path: 'E:\\B' }];
   const pending = await mount({
     '/describe': () => ({ ok: true, workspaces: oneTarget, session: { id: SESSION_ID, canMove: true, reason: null } }),
@@ -282,10 +289,10 @@ test('收尾待补时给出明确提示；桥接报错时显示失败原因', as
   });
   pending.buttons(pending.render())[0].props.onClick();
   await flush();
-  const pendingPicking = pending.buttons(pending.render());
-  pendingPicking[textingIndex(pendingPicking, '工作区 B')].props.onClick();
+  let items = pending.buttons(pending.api.__moveMenu.host());
+  items[textingIndex(items, '工作区 B')].props.onClick();
   await flush();
-  assert.match(textOf(pending.buttons(pending.render())[0]), /下次启动 DSH 时自动补齐/);
+  assert.equal(pending.api.__moveMenu.state().open, false, '搬完就收起子菜单');
 
   const failed = await mount({
     '/describe': () => ({ ok: true, workspaces: oneTarget, session: { id: SESSION_ID, canMove: true, reason: null } }),
@@ -293,12 +300,12 @@ test('收尾待补时给出明确提示；桥接报错时显示失败原因', as
   });
   failed.buttons(failed.render())[0].props.onClick();
   await flush();
-  const failedPicking = failed.buttons(failed.render());
-  failedPicking[textingIndex(failedPicking, '工作区 B')].props.onClick();
+  items = failed.buttons(failed.api.__moveMenu.host());
+  items[textingIndex(items, '工作区 B')].props.onClick();
   await flush();
-  const tree = failed.buttons(failed.render())[0];
-  assert.equal(tree.props.disabled, true);
-  assert.match(textOf(tree), /移动失败.*正打开着/);
+  const state = failed.api.__moveMenu.state();
+  assert.equal(state.phase, 'ready');
+  assert.match(state.error, /正打开着/);
 });
 
 // ── 拖动搬移 ────────────────────────────────────────────────────────────────
@@ -860,8 +867,10 @@ test('批量：apply 把契约合并进引导全局（不覆盖 prefix），并�
     'conversation.chat.assistant-actions',
     'conversation.input.dock',
     'shell.overlay',
-  ], '八处注入：composer chip + 页脚底栏 + 行配置页 + 包配置页 + 会话菜单 + 重发图标/消费者/弹窗');
-  assert.equal(registered, 8, '八个 slot 各注入一次');
+    // 0.3.3：「移动」的右侧子菜单宿主。
+    'shell.overlay',
+  ], '九处注入：composer chip + 页脚底栏 + 行配置页 + 包配置页 + 会话菜单 + 重发图标/消费者/弹窗 + 移动子菜单');
+  assert.equal(registered, 9, '九个 slot 各注入一次');
   delete globalThis.document;
 });
 
