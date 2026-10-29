@@ -11,9 +11,6 @@
 | **删除会话** | 会话行 **…** → **删除**（红色）；或 **Ctrl + 点击**多选后底栏「删除」 |
 | **批量归档 / 移动 / 删除** | **Ctrl（⌘）+ 左键**多选 → 侧栏页脚操作条 |
 
-搬移行为与 [DDDMUC/dsh-session-relocate](https://github.com/DDDMUC/dsh-session-relocate) 对齐，
-并沿用修补版的崩溃恢复事务；编辑/删除是本插件新增的能力。
-
 ---
 
 ## 一、编辑消息并重发
@@ -231,6 +228,25 @@ src/plugin.js        主机侧：桥接 + 来源校验 + 迁移/删除/重发路
 lib/client.js        网页端：用户消息行编辑入口、搬移 UI（菜单/拖动/多选/底栏）
 test/                单元测试
 ~~~
+
+---
+
+## 参考项目
+
+本插件的搬移能力不是从零写的，它对齐或沿用了下面这些项目/实现：
+
+- **[DDDMUC/dsh-session-relocate](https://github.com/DDDMUC/dsh-session-relocate)** ——
+  跨工作区搬移的原始设计与实现：会话菜单的「移动」、拖放、多选批量、空闲会话释放、
+  正在回答时的就地接管，以及「暂存 → 改 header → 原子改名 → 改归属」的迁移流程。
+  本插件的搬移行为与它对齐。
+- **本项目的早期修补版（[LY024/dsh-session-extension](https://github.com/LY024/dsh-session-extension) 历史提交）** ——
+  在上游基础上补的崩溃恢复与安全校验：暂存区逐字节自校验、`rename` 失败回滚、
+  启动/调用时幂等恢复、来源校验与路径约束；本插件沿用这一套事务。
+- **DSH 官方客户端扩展点** —— `dsh-client-ui-slots` / `conversation.input.dock` /
+  `conversation.chat.*` 等公开槽位，以及用户消息行、操作行的官方 DOM 约定；
+  所有 UI 入口都通过这些接入，没有改 DSH 本体。
+
+编辑消息、内联编辑态、删除/归档入口是在以上基础上由本插件新增的能力。
 
 ---
 
