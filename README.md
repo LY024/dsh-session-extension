@@ -111,25 +111,25 @@ DSH 的会话可以归档（归档后可恢复）；多选底栏的 **归档** �
 在 **Plugins → 安装插件** 的输入框里粘贴安装规格：
 
 ~~~text
-github:LY024/dsh-session-extension#v0.7.1
+github:LY024/dsh-session-extension#v0.7.2
 ~~~
 
 命令行等价：
 
 ~~~bash
-dsh plugin --profile web add github:LY024/dsh-session-extension#v0.7.1
+dsh plugin --profile web add github:LY024/dsh-session-extension#v0.7.2
 ~~~
 
 也可以直接给仓库地址（同义写法）：
 
 ~~~bash
-dsh plugin --profile web add https://github.com/LY024/dsh-session-extension#v0.7.1
+dsh plugin --profile web add https://github.com/LY024/dsh-session-extension#v0.7.2
 ~~~
 
-如果拉 git 太慢，可以先把 Release 里的 `dsh-session-extension-0.7.1.tgz` 下载到本地，再装这个文件：
+如果拉 git 太慢，可以先把 Release 里的 `dsh-session-extension-0.7.2.tgz` 下载到本地，再装这个文件：
 
 ~~~bash
-dsh plugin --profile web add /绝对路径/dsh-session-extension-0.7.1.tgz
+dsh plugin --profile web add /绝对路径/dsh-session-extension-0.7.2.tgz
 ~~~
 
 ### 从 npm / 源码装
