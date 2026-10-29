@@ -103,19 +103,19 @@ archive API for each selected conversation, with per-item failure isolation and 
 Paste this install spec into **Plugins → Install plugin**:
 
 ~~~text
-github:LY024/dsh-session-extension#v0.6.4
+github:LY024/dsh-session-extension#v0.7.0
 ~~~
 
 The equivalent CLI command:
 
 ~~~bash
-dsh plugin --profile web add github:LY024/dsh-session-extension#v0.6.4
+dsh plugin --profile web add github:LY024/dsh-session-extension#v0.7.0
 ~~~
 
 The hosted repository URL works too:
 
 ~~~bash
-dsh plugin --profile web add https://github.com/LY024/dsh-session-extension#v0.6.4
+dsh plugin --profile web add https://github.com/LY024/dsh-session-extension#v0.7.0
 ~~~
 
 If cloning is slow, download `dsh-session-extension-0.7.0.tgz` from Releases first and install the file:
