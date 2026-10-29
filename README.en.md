@@ -18,14 +18,12 @@ It adds four capabilities. Every entry point lives in the conversation view or o
 ## 1. Edit a message and resend
 
 1. Hover the **last user message** and click the **↩** icon right after the copy icon;
-2. The message **turns into an inline editor in place** (full row width, light grey, no border, 16px radius) prefilled with that prompt, caret at the end. The message action row is hidden while editing;
+2. The message's **text part** turns into an inline editor in place (same width as the bubble, light grey, no border, 16px radius) prefilled with that prompt, caret at the end. **Uploaded images, files, and other attachments stay where they are**; the message action row is hidden while editing;
 3. Click **Send** (or `Ctrl/Cmd + Enter`), or **Cancel** to leave everything untouched.
 
-**What Send does**: it forks a new branch *before* that message (carrying all history up to that point), drops the edited text into the new branch's composer, and sends it. **The original conversation is not modified at all** — it stays where it was, and the new branch gets a fork marker in its title.
+**What Send does**: it puts the edited text into the **current conversation's** composer and sends it, continuing in the current conversation — **no new branch is created**; the original prompt stays in history (its attachments stay with it).
 
-If the conversation only contains that single prompt (no earlier history to fork from), Send degrades to “load the text into the current composer” and sends it as a new message.
-
-> Implementation note: DSH only exposes an action slot for *assistant* messages; user messages have none. So this entry point is **DOM-injected** (a MutationObserver re-inserts it), reusing the official copy button's CSS classes so size, colour, and hover match. The tooltip is a custom bubble (no native `title`, so two tooltips never stack).
+> Implementation note: DSH only exposes an action slot for *assistant* messages; user messages have none. So this entry point is **DOM-injected** (a MutationObserver re-inserts it), reusing the official copy button's CSS classes so size, colour, and hover match. The tooltip is a custom bubble (no native `title`, so two tooltips never stack). While editing, only the text bubble is hidden (`bubble` inside `userStack`); the attachment row stays visible.
 
 ## 2. Move a conversation
 
@@ -120,10 +118,10 @@ The hosted repository URL works too:
 dsh plugin --profile web add https://github.com/LY024/dsh-session-extension#v0.6.4
 ~~~
 
-If cloning is slow, download `dsh-session-extension-0.6.4.tgz` from Releases first and install the file:
+If cloning is slow, download `dsh-session-extension-0.7.0.tgz` from Releases first and install the file:
 
 ~~~bash
-dsh plugin --profile web add /absolute/path/to/dsh-session-extension-0.6.4.tgz
+dsh plugin --profile web add /absolute/path/to/dsh-session-extension-0.7.0.tgz
 ~~~
 
 ### From npm / source
