@@ -858,7 +858,6 @@ test('批量：apply 把契约合并进引导全局（不覆盖 prefix），并�
   assert.ok(dom.dispatched.some((event) => event.type === 'dsh-session-extension:ready'), '应当派发 ready 事件');
   assert.ok(dom.dispatched.some((event) => event.type === 'dsh-session-relocate:ready'), '旧 ready 事件名也要派发');
   assert.deepEqual(slots, [
-    'conversation.input.dock',
     'sidebar.footer.action',
     'plugins.row.config',
     'plugins.bundle.config',
@@ -869,8 +868,8 @@ test('批量：apply 把契约合并进引导全局（不覆盖 prefix），并�
     'shell.overlay',
     // 0.3.3：「移动」的右侧子菜单宿主。
     'shell.overlay',
-  ], '九处注入：composer chip + 页脚底栏 + 行配置页 + 包配置页 + 会话菜单 + 重发图标/消费者/弹窗 + 移动子菜单');
-  assert.equal(registered, 9, '九个 slot 各注入一次');
+  ], '八处注入：页脚底栏 + 行配置页 + 包配置页 + 会话菜单 + 重发图标/消费者/弹窗 + 移动子菜单（工作区 chip 已移除）');
+  assert.equal(registered, 8, '八个 slot 各注入一次');
   delete globalThis.document;
 });
 
@@ -1090,15 +1089,7 @@ test('设置页：连同子对话开关默认开，点一下写入关闭', async
   toggle.props.onClick();
   assert.deepEqual(writes, [['dsh-session-extension.includeChildren', 'false']], '点一下关掉并持久化');
   assert.equal(harness.api.__settings.wantChildren(), false);
-  const modeSetting = node.children[1];
-  assert.equal(modeSetting.props.className, 'dshsm-setting', '第二块是「chip 什么时候出现」');
-  const seg = modeSetting.children[1];
-  assert.equal(seg.props.className, 'dshsm-seg');
-  assert.deepEqual(seg.children.map((button) => button.props['data-on']), ['true', 'false', 'false'], '默认「一直出现」');
-  seg.children[1].props.onClick();
-  assert.equal(harness.api.__settings.chipMode(), 'hover', '点「悬浮才出现」后立即生效');
-  assert.ok(writes.some((pair) => pair[0] === 'dsh-session-extension.chipMode' && pair[1] === 'hover'), '写入 localStorage');
-  const star = node.children[2];
+  const star = node.children[1];
   assert.equal(star.type, 'a', '和 free-search 一样是整条链接');
   assert.equal(star.props.href, 'https://github.com/LY024/dsh-session-extension');
   assert.equal(star.props.target, '_blank');
