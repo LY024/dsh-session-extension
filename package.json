@@ -1,6 +1,6 @@
 {
   "name": "dsh-session-extension",
-  "version": "0.5.3",
+  "version": "0.6.0",
   "description": "会话管理增强：①在对话里编辑「上一次提问」后重新发送（类 Codex 的 edit-and-resend，走 DSH 原生 fork，原会话保留），入口是助手消息下方复制图标后面的小图标；②把会话连同日志与工作区归属整体搬到另一个工作区（可自动注册新目录），入口与 dsh-session-relocate 一致：会话菜单的「移动」（悬停右侧子菜单选工作区）、拖动、Ctrl 点击多选批量搬/归档、会话页工作区 chip；带崩溃恢复事务，正在打开/正在回答的会话也能搬。",
   "type": "module",
   "main": "src/plugin.js",
