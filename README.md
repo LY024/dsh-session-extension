@@ -109,17 +109,30 @@ DSH 的会话可以归档（归档后可恢复）；多选底栏的 **归档** �
 
 ## 安装
 
-### 从 Releases 装（推荐，不需要 node_modules）
+### 用 Harness 插件管理器安装（推荐）
 
-在 [Releases](https://github.com/LY024/dsh-session-extension/releases) 里下载
-`dsh-session-extension-0.6.4.tgz`：
+在 **Plugins → 安装插件** 的输入框里粘贴安装规格：
+
+~~~text
+github:LY024/dsh-session-extension#v0.6.4
+~~~
+
+命令行等价：
 
 ~~~bash
-tar -xzf dsh-session-extension-0.6.4.tgz
-dsh plugin --profile web add ./package
+dsh plugin --profile web add github:LY024/dsh-session-extension#v0.6.4
+~~~
 
-# 也可以直接装 tarball（pnpm 支持 file: 规格）
-dsh plugin --profile web add ./dsh-session-extension-0.6.4.tgz
+也可以直接给仓库地址（同义写法）：
+
+~~~bash
+dsh plugin --profile web add https://github.com/LY024/dsh-session-extension#v0.6.4
+~~~
+
+如果拉 git 太慢，可以先把 Release 里的 `dsh-session-extension-0.6.4.tgz` 下载到本地，再装这个文件：
+
+~~~bash
+dsh plugin --profile web add /绝对路径/dsh-session-extension-0.6.4.tgz
 ~~~
 
 ### 从 npm / 源码装
@@ -132,7 +145,7 @@ dsh plugin --profile web add dsh-session-extension
 dsh plugin --profile web add <你 clone 下来的 dsh-session-extension 目录>
 ~~~
 
-主机侧是 Node 模块，装完**重启一次 `dsh web`**（或用 Plugins 页面的插件管理器安装，它会尝试热加载）。
+装完**重启一次 `dsh web`**（插件管理器安装会尝试热加载；命令行安装必须重启）。
 
 自检：
 

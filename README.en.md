@@ -100,17 +100,30 @@ archive API for each selected conversation, with per-item failure isolation and 
 
 ## Installation
 
-### From Releases (recommended, no node_modules required)
+### Via the Harness plugin manager (recommended)
 
-Download `dsh-session-extension-0.6.4.tgz` from
-[Releases](https://github.com/LY024/dsh-session-extension/releases):
+Paste this install spec into **Plugins → Install plugin**:
+
+~~~text
+github:LY024/dsh-session-extension#v0.6.4
+~~~
+
+The equivalent CLI command:
 
 ~~~bash
-tar -xzf dsh-session-extension-0.6.4.tgz
-dsh plugin --profile web add ./package
+dsh plugin --profile web add github:LY024/dsh-session-extension#v0.6.4
+~~~
 
-# Or install the tarball directly (pnpm accepts file: specs)
-dsh plugin --profile web add ./dsh-session-extension-0.6.4.tgz
+The hosted repository URL works too:
+
+~~~bash
+dsh plugin --profile web add https://github.com/LY024/dsh-session-extension#v0.6.4
+~~~
+
+If cloning is slow, download `dsh-session-extension-0.6.4.tgz` from Releases first and install the file:
+
+~~~bash
+dsh plugin --profile web add /absolute/path/to/dsh-session-extension-0.6.4.tgz
 ~~~
 
 ### From npm / source
@@ -123,8 +136,7 @@ dsh plugin --profile web add dsh-session-extension
 dsh plugin --profile web add <path-to-your-checkout>
 ~~~
 
-The host half is a Node module, so **restart `dsh web`** after installing (or use the Plugins page's
-plugin manager, which tries to hot-load it).
+**Restart `dsh web` once** after installing (the plugin manager tries to hot-load; a CLI install needs the restart).
 
 Health check:
 
