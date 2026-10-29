@@ -1,8 +1,9 @@
-# dsh-session-extension —— 会话重发 + 跨工作区搬会话
+# dsh-session-extension —— 编辑消息重发 + 跨工作区搬会话 + 删除/归档
 #
-# 主机侧：/api/dsh-session-extension/{status,last-prompt,sessions,describe,move,move-commit}
-# 客户端：lib/client.js 只往助手消息操作行里加一个小图标（复制后面、分叉前面），
-#         弹窗里做「编辑上次提问重发」和「移动到工作区」；不注册任何左侧栏入口。
+# 主机侧：/api/dsh-session-extension/{status,last-prompt,sessions,describe,move,move-commit,delete}
+# 客户端：lib/client.js 在**用户消息**操作行里注入「编辑消息」图标（复制后面），
+#         并注册搬移入口（会话菜单「移动」子菜单 / 拖动 / Ctrl 多选底栏）；
+#         不注册任何左侧栏页面。
 #
 # 安装：dsh plugin --profile web add <你 clone 下来的 dsh-session-extension 目录>
 #
@@ -11,6 +12,7 @@
 #   journalsDir    迁移日志目录，默认 <dsh home>/session-move
 #   moveLive       true：正在回答的对话走「就地接管」；false：拒绝搬正在跑的
 #   releaseLive    true：打开着但空闲的对话先自动释放再搬；false：拒绝搬打开中的
+#   dragMove       true：侧边栏拖动搬移；false：只保留菜单那条路
 #   allowedHosts   额外允许的 Host 主机名（默认只认回环 + webServer.host）
 #   allowedOrigins 额外允许的 Origin（开发代理用；默认只认同源）
 #   selftest       false：true 时多挂 __selftest/* 路由（只在自测时开）
