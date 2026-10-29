@@ -961,12 +961,11 @@ test('批量：apply 把契约合并进引导全局（不覆盖 prefix），并�
     'plugins.row.config',
     'plugins.bundle.config',
     'sidebar.workspaces.session.menu.item',
-    // 0.3.0 新增：消息操作行里的「编辑上次提问」图标、隐藏的待载入消费者、编辑弹窗。
-    'conversation.chat.assistant-actions',
+    // 隐藏的待载入消费者、编辑弹窗（「编辑上次提问」入口已改到用户消息行，走 DOM 注入）。
     'conversation.input.dock',
     'shell.overlay',
-  ], '七处注入：页脚底栏 + 行配置页 + 包配置页 + 会话菜单 + 重发图标/消费者/弹窗（工作区 chip 已移除）');
-  assert.equal(registered, 7, '七个 slot 各注入一次');
+  ], '六处注入：页脚底栏 + 行配置页 + 包配置页 + 会话菜单 + 重发消费者/弹窗（工作区 chip 已移除）');
+  assert.equal(registered, 6, '六个 slot 各注入一次');
   delete globalThis.document;
 });
 

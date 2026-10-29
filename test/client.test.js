@@ -87,13 +87,14 @@ test('apply 在搬移入口之外，额外注册重发图标、隐藏消费者�
   };
   const dispose = mod.apply(ctx);
   assert.equal(typeof dispose, 'function');
-  assert.ok(slots.indexOf('conversation.chat.assistant-actions') >= 0, '应当注册消息操作行图标');
+  assert.equal(slots.indexOf('conversation.chat.assistant-actions'), -1, '助手消息行不再注册入口');
   assert.ok(slots.indexOf('conversation.input.dock') >= 0, '应当注册隐藏的待载入消费者');
   assert.ok(slots.indexOf('shell.overlay') >= 0, '应当注册编辑弹窗');
   // 搬移入口仍在（与参考实现一致）。
   assert.ok(slots.indexOf('sidebar.workspaces.session.menu.item') >= 0);
   assert.ok(slots.indexOf('sidebar.footer.action') >= 0);
-  assert.ok(slots.indexOf('conversation.input.dock') >= 0);
+  assert.equal(typeof rewrite.decorateUserAction, 'function', '用户消息行用 DOM 注入');
+  assert.equal(typeof rewrite.installUserAction, 'function');
   assert.equal(registeredCount, 2, 'sessions / uiWorkspace 各注入一次');
 });
 
