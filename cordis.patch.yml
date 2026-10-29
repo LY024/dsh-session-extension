@@ -1,0 +1,19 @@
+# dsh-session-extension —— 会话重发增强（编辑上一次提问后重新发送）
+#
+# 主机侧：/api/dsh-session-extension/{status,last-prompt,sessions} 只读桥接。
+# 客户端：lib/client.js 往左侧栏加一个入口（sidebar.panellist + main），
+#         并在会话 composer 上方加「编辑上次提问」入口。
+#
+# 安装：dsh plugin --profile web add <你 clone 下来的 dsh-session-extension 目录>
+#
+# 配置（均可被 profile 层覆盖；下面列的是**代码真正读的键**和它们的默认值）：
+#   bridgePrefix   HTTP 桥接前缀，默认 /api/dsh-session-extension
+#   allowedHosts   额外允许的 Host 主机名（默认只认回环 + webServer.host）
+#   allowedOrigins 额外允许的 Origin（开发代理用；默认只认同源）
+#   maxSessions    /sessions 一次最多返回多少条（默认 40，上限 200）
+#   withTitles     /sessions 是否顺带读标题（默认 false；true 时只对 <= 20 条生效）
+- insert:
+    - id: session-extension-edit
+      name: dsh-session-extension
+      config:
+        bridgePrefix: /api/dsh-session-extension

@@ -1,0 +1,74 @@
+{
+  "name": "dsh-session-extension",
+  "version": "0.1.0",
+  "description": "会话重发增强：在对话里编辑「上一次提问」后重新发送（类 Codex 的 edit-and-resend），并提供一个左侧栏「会话重发台」页面。重发走 DSH 原生 fork：原会话原样保留，新分支从那条消息之前开始，编辑后的内容直接进入新分支的输入框。",
+  "type": "module",
+  "main": "src/plugin.js",
+  "exports": {
+    ".": "./src/plugin.js",
+    "./last-prompt": "./src/last-prompt.js",
+    "./client": "./lib/client.js",
+    "./package.json": "./package.json"
+  },
+  "icon": "icon.svg",
+  "files": [
+    "src",
+    "lib",
+    "test",
+    "icon.svg",
+    "cordis.patch.yml",
+    "README.md",
+    "LICENSE"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-slots",
+        "@deepseek-ai/dsh-client-ui-conversation",
+        "@deepseek-ai/dsh-api-session-controller",
+        "@deepseek-ai/dsh-client-ui-workspace",
+        "@deepseek-ai/dsh-client-locale"
+      ]
+    },
+    "engines": {
+      "dsh": ">=0.2.0-rc.2"
+    },
+    "compatibility": {
+      "dshReleases": {
+        "0.2.0-rc.2": "compatible",
+        "0.2.1-alpha.2": "compatible",
+        "0.2.1-rc.3": "compatible"
+      }
+    }
+  },
+  "scripts": {
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=22.15"
+  },
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "session",
+    "conversation",
+    "edit",
+    "resend",
+    "fork",
+    "codex"
+  ],
+  "license": "GPL-3.0-or-later",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/LY024/dsh-session-extension.git"
+  },
+  "bugs": {
+    "url": "https://github.com/LY024/dsh-session-extension/issues"
+  },
+  "homepage": "https://github.com/LY024/dsh-session-extension#readme"
+}
