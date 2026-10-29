@@ -22,14 +22,13 @@
    光标落在末尾；**已经上传的图片、文档等附件留在原位不动**，消息下方的图标行暂时隐藏；
 3. 改完点 **发送**（或 `Ctrl/Cmd + Enter`），也可以点 **取消** 原样退出。
 
-**发送做了什么**：**覆盖**这条消息——从这条消息**之前**分叉出一个新会话，把改好的文字放进新会话的
-输入框并发送，然后**归档原会话**。于是旧消息（连同它之后的回答）从侧栏消失，新会话从编辑处继续，
-看起来就是这条消息被改掉、重新回答了。原会话只是归档、没有删除，随时可以取消归档找回。
+**发送做了什么**：把改好的文字放进**当前会话**的输入框并直接发送，从当前对话继续——
+**不会创建新分支**；原来那条提问作为历史保留（附件也原样留在那条消息上）。
 
-> 实现说明：DSH 的会话是**只追加的事件流**，客户端没有「原地改写历史消息」的接口，所以用
-> 「从这条消息之前分叉 + 归档原会话」模拟覆盖。入口本身是 DOM 注入（DSH 官方只给助手消息留了操作槽），
-> 复用官方复制按钮的类名保证观感一致；hover 提示是自绘气泡（不设原生 `title`）。
-> 编辑时只隐藏文字气泡（`userStack` 里的 `bubble`），附件行（`attachmentRow`）保持可见。
+> 实现说明：DSH 官方只给助手消息留了操作槽，用户消息行**没有**扩展槽。所以这个入口是
+> DOM 注入（MutationObserver 补插），并直接复用官方复制按钮的类名，保证尺寸/颜色/hover 一致。
+> hover 提示是自绘气泡（不设原生 `title`，避免两个提示叠在一起）。编辑时只隐藏文字气泡
+> （`userStack` 里的 `bubble`），附件行（`attachmentRow`）保持可见。
 
 ## 二、移动会话
 
@@ -112,25 +111,25 @@ DSH 的会话可以归档（归档后可恢复）；多选底栏的 **归档** �
 在 **Plugins → 安装插件** 的输入框里粘贴安装规格：
 
 ~~~text
-github:LY024/dsh-session-extension#v0.8.0
+github:LY024/dsh-session-extension#v0.7.2
 ~~~
 
 命令行等价：
 
 ~~~bash
-dsh plugin --profile web add github:LY024/dsh-session-extension#v0.8.0
+dsh plugin --profile web add github:LY024/dsh-session-extension#v0.7.2
 ~~~
 
 也可以直接给仓库地址（同义写法）：
 
 ~~~bash
-dsh plugin --profile web add https://github.com/LY024/dsh-session-extension#v0.8.0
+dsh plugin --profile web add https://github.com/LY024/dsh-session-extension#v0.7.2
 ~~~
 
-如果拉 git 太慢，可以先把 Release 里的 `dsh-session-extension-0.8.0.tgz` 下载到本地，再装这个文件：
+如果拉 git 太慢，可以先把 Release 里的 `dsh-session-extension-0.7.2.tgz` 下载到本地，再装这个文件：
 
 ~~~bash
-dsh plugin --profile web add /绝对路径/dsh-session-extension-0.8.0.tgz
+dsh plugin --profile web add /绝对路径/dsh-session-extension-0.7.2.tgz
 ~~~
 
 ### 从 npm / 源码装
