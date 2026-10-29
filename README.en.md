@@ -100,6 +100,21 @@ archive API for each selected conversation, with per-item failure isolation and 
 
 ## Installation
 
+### From Releases (recommended, no node_modules required)
+
+Download `dsh-session-extension-0.6.4.tgz` from
+[Releases](https://github.com/LY024/dsh-session-extension/releases):
+
+~~~bash
+tar -xzf dsh-session-extension-0.6.4.tgz
+dsh plugin --profile web add ./package
+
+# Or install the tarball directly (pnpm accepts file: specs)
+dsh plugin --profile web add ./dsh-session-extension-0.6.4.tgz
+~~~
+
+### From npm / source
+
 ~~~bash
 # From npm (once published):
 dsh plugin --profile web add dsh-session-extension

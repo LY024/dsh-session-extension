@@ -109,6 +109,21 @@ DSH 的会话可以归档（归档后可恢复）；多选底栏的 **归档** �
 
 ## 安装
 
+### 从 Releases 装（推荐，不需要 node_modules）
+
+在 [Releases](https://github.com/LY024/dsh-session-extension/releases) 里下载
+`dsh-session-extension-0.6.4.tgz`：
+
+~~~bash
+tar -xzf dsh-session-extension-0.6.4.tgz
+dsh plugin --profile web add ./package
+
+# 也可以直接装 tarball（pnpm 支持 file: 规格）
+dsh plugin --profile web add ./dsh-session-extension-0.6.4.tgz
+~~~
+
+### 从 npm / 源码装
+
 ~~~bash
 # 从 npm 装（发布后）：
 dsh plugin --profile web add dsh-session-extension
