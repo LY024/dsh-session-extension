@@ -149,8 +149,15 @@ curl http://127.0.0.1:3080/api/dsh-session-extension/status
 node --test
 ~~~
 
-`test/last-prompt.test.js` 覆盖「上一次提问」的识别规则：用户来源过滤、追加/替换副本区分、
-空白文本、fork 边界、助手回答判定。全部用合成数据，不碰真实会话。
+两个测试文件：
+
+- `test/last-prompt.test.js` 覆盖「上一次提问」的识别规则：用户来源过滤、追加/替换副本区分、
+  空白文本、fork 边界、助手回答判定；
+- `test/client.test.js` 用最小的 react / document / fetch 替身把网页端工厂物化一遍，
+  把面板、composer 入口、菜单项、编辑对话框都渲染一次，覆盖槽位注册、会话过滤、
+  待载入状态机和中英字典完整性。
+
+全部用合成数据，不碰真实会话。
 
 目录：
 
