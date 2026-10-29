@@ -13,13 +13,13 @@
  */
 import { existsSync } from 'node:fs';
 import { createRequire } from 'node:module';
-import { mkdir, readdir, realpath, rm } from 'node:fs/promises';
+import { mkdir, readdir, realpath, rename, rm } from 'node:fs/promises';
 import { randomBytes } from 'node:crypto';
 import { isIP } from 'node:net';
 import { homedir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { basename, dirname, join } from 'node:path';
 import { encodeSegment, sessionDir } from './paths.js';
-import { commitMoves, createMoveStore, isPathWithin, MAX_SESSION_ID_LENGTH, MoveError, recoverPendingMoves, relocateSession, samePath } from './relocate.js';
+import { commitMoves, createMoveStore, isPathWithin, MAX_SESSION_ID_LENGTH, MoveError, newOpId, recoverPendingMoves, relocateSession, samePath } from './relocate.js';
 import { findLastPrompt, hasReplyAfter } from './last-prompt.js';
 
 /** 插件名（必须与 package.json 的 name 一致）。 */
@@ -1102,6 +1102,128 @@ export function apply(ctx, config) {
     };
   }
 
+  // ---- 删除会话（危险操作）--------------------------------------------------
+  //
+  // 删除 = 释放 live 写者 → 把会话目录原子挪进 `<sessionsRoot>/_session-delete-trash/<opId>/`
+  //      → 摘掉工作区归属 → 失效投影缓存 → 删掉暂存目录。
+  // 暂存目录比 DSH 认的会话目录深一层，扫描器看不到；中途失败会把已挪走的目录挪回原位。
+
+  /** 读请求里的会话 id 列表（兼容单个 sessionId 与批量 sessionIds）。 */
+  function readDeleteIds(body) {
+    const out = [];
+    const push = (value) => {
+      if (typeof value !== 'string') return;
+      const id = value.trim();
+      if (id.length === 0 || id.length > MAX_SESSION_ID_LENGTH) return;
+      if (out.indexOf(id) < 0) out.push(id);
+    };
+    if (body !== null && typeof body === 'object' && Array.isArray(body.sessionIds)) {
+      for (const value of body.sessionIds.slice(0, MAX_BATCH_SESSIONS)) push(value);
+      return out;
+    }
+    push(body !== null && typeof body === 'object' ? body.sessionId : undefined);
+    return out;
+  }
+
+  /** 找出这个会话在存储根下的所有目录（正常情况下只有一个）。 */
+  async function sessionDirsOf(sessionId) {
+    const root = store.sessionsRoot;
+    const encoded = encodeSegment(sessionId);
+    const dirs = [];
+    let projects = [];
+    try {
+      projects = await readdir(root, { withFileTypes: true });
+    } catch (error) {
+      return dirs;
+    }
+    for (const project of projects) {
+      if (!project.isDirectory()) continue;
+      if (project.name === '_session-move-staging' || project.name === '_session-delete-trash') continue;
+      const dir = join(root, project.name, encoded);
+      if (existsSync(dir)) dirs.push(dir);
+    }
+    return dirs;
+  }
+
+  /** 删除一批会话；逐条隔离，返回每一条的结果。 */
+  async function deleteSessions(body) {
+    const ids = readDeleteIds(body);
+    if (ids.length === 0) return { ok: false, code: 'bad-request', message: '需要 sessionId 或 sessionIds' };
+    const includeChildren = body === null || typeof body !== 'object' || body.includeChildren !== false;
+    const host = buildHost();
+    const results = [];
+    for (const sessionId of ids) {
+      try {
+        results.push({ sessionId, status: 'deleted', removed: await deleteOne(host, sessionId, includeChildren) });
+      } catch (error) {
+        results.push({ sessionId, status: 'failed', message: String(error && error.message ? error.message : error) });
+      }
+    }
+    const deleted = results.filter((row) => row.status === 'deleted').length;
+    log('info', '删除会话：成功 ' + String(deleted) + '，失败 ' + String(results.length - deleted));
+    return { ok: true, deleted, failed: results.length - deleted, results };
+  }
+
+  /** 删一个会话（父会话 + 可选的子代理会话）：要么全删，要么一个都不动。 */
+  async function deleteOne(host, sessionId, includeChildren) {
+    // 先确认会话真的存在（目录或持久层登记），否则报 not-found 而不是静默成功。
+    const parentDirs = await sessionDirsOf(sessionId);
+    if (parentDirs.length === 0) {
+      let known = false;
+      try {
+        known = (await host.statSession(sessionId)) !== undefined && (await host.statSession(sessionId)) !== null;
+      } catch (error) {
+        known = false;
+      }
+      if (!known) throw new MoveError('session-not-found', '找不到会话 ' + sessionId);
+    }
+    const targets = [sessionId];
+    if (includeChildren) {
+      try {
+        const snapshots = await host.listSessions();
+        for (const childId of descendantIdsOf(snapshots, sessionId)) {
+          if (targets.indexOf(childId) < 0) targets.push(childId);
+        }
+      } catch (error) {
+        log('warn', '列子会话失败，只删父会话：' + String(error && error.message));
+      }
+    }
+
+    const trash = join(store.sessionsRoot, '_session-delete-trash', newOpId());
+    const moved = [];
+    try {
+      await mkdir(trash, { recursive: true });
+      for (const id of targets) {
+        const release = await host.releaseSession(id).catch((error) => ({ released: false, detail: String(error && error.message) }));
+        if (release !== null && release !== undefined && release.released === false) {
+          throw new MoveError('session-live', '这个会话正在运行，先停止它再删除：' + String(release.detail || ''));
+        }
+        const dirs = await sessionDirsOf(id);
+        for (const dir of dirs) {
+          const dest = join(trash, encodeSegment(basename(dirname(dir))) + '__' + basename(dir));
+          await rename(dir, dest);
+          moved.push({ from: dir, to: dest, sessionId: id });
+        }
+      }
+      for (const id of targets) {
+        for (const entity of ctx.workspaceRegistry.list()) {
+          if (Array.isArray(entity.sessionIds) && entity.sessionIds.includes(id)) {
+            await entity.detachSession(id).catch(() => {});
+          }
+        }
+        await host.invalidateProjection(id).catch(() => {});
+      }
+      await rm(trash, { recursive: true, force: true });
+      return moved.map((entry) => entry.from);
+    } catch (error) {
+      for (let index = moved.length - 1; index >= 0; index -= 1) {
+        await rename(moved[index].to, moved[index].from).catch(() => {});
+      }
+      await rm(trash, { recursive: true, force: true }).catch(() => {});
+      throw error;
+    }
+  }
+
   /** 报告还有哪些迁移没收尾。 */
   async function status() {
     await kickRecovery();
@@ -1115,7 +1237,7 @@ export function apply(ctx, config) {
       moveLive,
       dragMove,
       selftest,
-      capabilities: { move: true, lastPrompt: true, sessions: true, fork: 'client' },
+      capabilities: { move: true, delete: true, lastPrompt: true, sessions: true, fork: 'client' },
       // 批量搬移的两段式（defer 文件事务 + 一次 commit 写注册表）由客户端按这个能力位决定是否启用。
       bulkDefer: true,
       verify: settings.verify === 'full' ? 'full' : 'auto',
@@ -1356,6 +1478,7 @@ export function apply(ctx, config) {
         route(prefix + '/move-commit', ['POST'], moveCommit, sctx.webServer),
         route(prefix + '/sessions', ['POST'], listSessions, sctx.webServer),
         route(prefix + '/last-prompt', ['POST'], lastPrompt, sctx.webServer),
+        route(prefix + '/delete', ['POST'], deleteSessions, sctx.webServer),
         route(prefix + '/status', ['GET', 'POST'], status, sctx.webServer),
       ];
       if (selftest) {

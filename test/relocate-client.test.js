@@ -89,6 +89,7 @@ async function mount(routes) {
 
   let injectedSlot = null;
   let registration = null;
+  let deleteRegistration = null;
   let disposer = null;
   const byName = new Map();
   const fakeCtx = {
@@ -100,7 +101,10 @@ async function mount(routes) {
       },
       register(spec, component) {
         byName.set(spec.name, component);
-        if (spec.name === 'sidebar.workspaces.session.menu.item') registration = { spec, component };
+        if (spec.name === 'sidebar.workspaces.session.menu.item') {
+          if (spec.id === 'session-extension') registration = { spec, component };
+          else if (spec.id === 'session-extension-delete') deleteRegistration = { spec, component };
+        }
         return () => {};
       },
     },
@@ -131,7 +135,7 @@ async function mount(routes) {
     try { return api.__entry(props); } finally { globalThis.fetch = saved; }
   };
 
-  return { api, entry, fakeCtx, injectedSlot, registration, returned, props, render, renderApi, calls: fetchHarness.calls, menuOpens, buttons: (tree) => collectButtons(tree) };
+  return { api, entry, fakeCtx, injectedSlot, registration, deleteRegistration, returned, props, render, renderApi, calls: fetchHarness.calls, menuOpens, buttons: (tree) => collectButtons(tree) };
 }
 
 test('兼容：主机侧还注入旧引导全局名时，客户端照样用它的前缀（改名过渡期）', async () => {
@@ -309,6 +313,76 @@ test('收尾待补时正常收起；桥接报错时子菜单里显示失败原�
   const state = failed.api.__moveMenu.state();
   assert.equal(state.phase, 'ready');
   assert.match(state.error, /正打开着/);
+});
+
+test('菜单「删除」：确认后调 /delete，取消则什么都不做', async () => {
+  const harness = await mount({
+    '/delete': () => ({ ok: true, deleted: 1, failed: 0, results: [] }),
+  });
+  assert.notEqual(harness.deleteRegistration, null, '应当注册删除菜单项');
+  assert.deepEqual(harness.deleteRegistration.spec, {
+    name: 'sidebar.workspaces.session.menu.item', id: 'session-extension-delete', order: 360,
+  });
+  const props = {
+    sessionId: SESSION_ID,
+    displayTitle: '演示对话',
+    useMenuOpenState: () => [true, (open) => harness.menuOpens.push(open)],
+  };
+  let asked = '';
+  globalThis.confirm = (message) => { asked = message; return true; };
+
+  const tree = harness.deleteRegistration.component(props);
+  const buttons = harness.buttons(tree);
+  assert.equal(buttons.length, 1);
+  assert.ok(textOf(buttons[0]).includes('删除'));
+  assert.ok(String(buttons[0].props.className).includes('dshsm-danger'), '删除项应当是危险色');
+  buttons[0].props.onClick();
+  await flush();
+
+  assert.ok(asked.includes('演示对话'), '确认框里应带上会话标题');
+  assert.deepEqual(harness.calls[0], {
+    url: PREFIX + '/delete',
+    body: { sessionId: SESSION_ID, includeChildren: true },
+  });
+  assert.deepEqual(harness.menuOpens, [false], '删除后关闭菜单');
+
+  // 取消确认：不发请求。
+  globalThis.confirm = () => false;
+  harness.calls.length = 0;
+  harness.buttons(harness.deleteRegistration.component(props))[0].props.onClick();
+  await flush();
+  assert.equal(harness.calls.length, 0, '取消确认不应发起删除');
+  delete globalThis.confirm;
+});
+
+test('批量删除：确认后逐条 /delete，完成后退出多选', async () => {
+  const api = await makeBulkApi();
+  const dom = makeBulkDom(['session-a', 'session-b']);
+  globalThis.document = dom.doc;
+  installBulkGlobals();
+  const bulk = api.__bulk;
+  const calls = [];
+  globalThis.fetch = async (url, options) => {
+    calls.push({ url: String(url), body: JSON.parse(options.body) });
+    return { status: 200, json: async () => ({ ok: true, deleted: 1, failed: 0, results: [] }) };
+  };
+  let asked = '';
+  globalThis.confirm = (message) => { asked = message; return true; };
+
+  bulk.enterBulk();
+  bulk.state.selected['session-a'] = true;
+  bulk.state.selected['session-b'] = true;
+  bulk.bulkUpdateBar();
+  bulk.bulkDeleteSelected();
+  await flush();
+  await flush();
+
+  assert.ok(asked.includes('2'), '确认框应带上数量');
+  assert.equal(calls.length, 2, '两个会话各发一次 /delete');
+  assert.ok(calls.every((call) => call.url === PREFIX + '/delete'));
+  assert.equal(bulk.state.selecting, false, '删完退出多选');
+  delete globalThis.confirm;
+  delete globalThis.document;
 });
 
 // ── 拖动搬移 ────────────────────────────────────────────────────────────────
@@ -1143,9 +1217,10 @@ test('多选底栏：常驻槽组件，没进多选返回 null；进了渲染计
     assert.equal(bar.props.role, 'toolbar');
     assert.equal(textOf(bar.children[0]), '已选 0 个');
     const buttons = collectButtons(bar);
-    assert.deepEqual(buttons.map((b) => textOf(b)), ['取消', '归档', '移动']);
+    assert.deepEqual(buttons.map((b) => textOf(b)), ['取消', '归档', '删除', '移动']);
     assert.equal(buttons[1].props.disabled, true, '一个都没选时「归档」禁用');
-    assert.equal(buttons[2].props.disabled, true, '一个都没选时「移动」禁用');
+    assert.equal(buttons[2].props.disabled, true, '一个都没选时「删除」禁用');
+    assert.equal(buttons[3].props.disabled, true, '一个都没选时「移动」禁用');
 
     harness.api.__bulk.state.selected[SESSION_ID] = true;
     harness.api.__bulk.bulkUpdateBar();

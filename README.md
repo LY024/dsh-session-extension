@@ -8,6 +8,7 @@
 | --- | --- |
 | **编辑上次提问并重发** | 助手消息下方那排小图标里（**复制**后面、**分叉**前面）多一个 **↩**；hover 和复制一样显示名字 |
 | **跨工作区搬会话** | 侧栏会话行 **…** → **移动**（鼠标悬停时右侧展开工作区子菜单）；或把会话**拖到**别的工作区；或 **Ctrl + 点击**多选后批量搬/归档 |
+| **删除会话** | 侧栏会话行 **…** → **删除**（二次确认）；或 **Ctrl + 点击**多选后底栏「删除」 |
 
 搬会话与 [DDDMUC/dsh-session-relocate](https://github.com/DDDMUC/dsh-session-relocate) 的功能保持一致，
 并保留了你修补版里的安全事务与崩溃恢复。
@@ -119,6 +120,21 @@
 
 ---
 
+## 三、删除会话
+
+**危险操作：会话日志会被物理删除，不能恢复。**
+
+- 会话行 **…** → **删除** → 确认 → 日志目录、工作区归属、投影缓存一起清掉；
+- **Ctrl + 点击**多选后，页脚底栏点 **删除** → 确认 → 逐条删除；
+- 正在运行的会话会**先被停止**再删（否则日志被占用）；删不掉时会明确告诉你原因；
+- 默认连同子代理会话一起删（跟着「连同子对话一起移动」这个设置）；关掉就只删父会话。
+
+删除也是事务化的：先把会话目录**原子挪进** `<sessionsRoot>/_session-delete-trash/<opId>/`，
+摘完归属、失效投影后再清空暂存；中途失败会把已挪走的目录挪回原位，不会留下半截。
+删的是**会话日志**，工作区目录里的文件不受影响。
+
+---
+
 ## 安装
 
 ~~~bash
@@ -172,6 +188,7 @@ curl http://127.0.0.1:3080/api/dsh-session-extension/status
 | POST | `<prefix>/move-commit` | `{ sessionIds }` → 把一批 defer 过的迁移归属一次性写进注册表。 |
 | POST | `<prefix>/last-prompt` | `{ sessionId }` → `{ seq, prevSeq, text, time, images, files, replied }`。`prevSeq` 就是 fork 的闭区右端点。 |
 | POST | `<prefix>/sessions` | `{ limit?, withTitles? }` → 会话目录（只读 header）。 |
+| POST | `<prefix>/delete` | `{ sessionId \| sessionIds, includeChildren? }` → `{ deleted, failed, results[] }`；物理删除日志 + 摘归属 + 失效投影。 |
 | GET/POST | `<prefix>/status` | 版本、配置、待收尾的迁移列表；调用时会顺带尝试恢复。 |
 
 失败一律是 `{ ok: false, code, message }`。POST 必须带 `Content-Type: application/json`；
