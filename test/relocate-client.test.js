@@ -315,7 +315,7 @@ test('收尾待补时正常收起；桥接报错时子菜单里显示失败原�
   assert.match(state.error, /正打开着/);
 });
 
-test('菜单「删除」：确认后调 /delete，取消则什么都不做', async () => {
+test('菜单「删除」：确认后调 /delete', async () => {
   const harness = await mount({
     '/delete': () => ({ ok: true, deleted: 1, failed: 0, results: [] }),
   });
@@ -328,31 +328,49 @@ test('菜单「删除」：确认后调 /delete，取消则什么都不做', asy
     displayTitle: '演示对话',
     useMenuOpenState: () => [true, (open) => harness.menuOpens.push(open)],
   };
-  let asked = '';
-  globalThis.confirm = (message) => { asked = message; return true; };
 
   const tree = harness.deleteRegistration.component(props);
   const buttons = harness.buttons(tree);
   assert.equal(buttons.length, 1);
   assert.ok(textOf(buttons[0]).includes('删除'));
   assert.ok(String(buttons[0].props.className).includes('dshsm-danger'), '删除项应当是危险色');
+  assert.equal(tree.props.className, 'dshsm-entry', '和「移动」用同一个外层容器，保证菜单项对齐');
   buttons[0].props.onClick();
   await flush();
 
-  assert.ok(asked.includes('演示对话'), '确认框里应带上会话标题');
   assert.deepEqual(harness.calls[0], {
     url: PREFIX + '/delete',
     body: { sessionId: SESSION_ID, includeChildren: true },
   });
   assert.deepEqual(harness.menuOpens, [false], '删除后关闭菜单');
+});
 
-  // 取消确认：不发请求。
-  globalThis.confirm = () => false;
-  harness.calls.length = 0;
-  harness.buttons(harness.deleteRegistration.component(props))[0].props.onClick();
-  await flush();
-  assert.equal(harness.calls.length, 0, '取消确认不应发起删除');
-  delete globalThis.confirm;
+test('确认框：点「取消」返回 false，点「删除」返回 true', async () => {
+  const dom = makeBulkDom([]);
+  globalThis.document = dom.doc;
+  installBulkGlobals();
+  try {
+    const api = await makeBulkApi();
+    const promise = api.__bulk.confirmDanger('确定删除吗？');
+    await flush();
+    const backdrop = dom.body.children[dom.body.children.length - 1];
+    const panel = backdrop.children[0];
+    const actions = panel.children[2];
+    const cancel = actions.children[0];
+    const ok = actions.children[1];
+    assert.equal(ok.textContent, '删除');
+    cancel.dispatch('click');
+    assert.equal(await promise, false, '取消返回 false');
+    assert.equal(dom.body.children.length, 0, '取消后关闭面板');
+
+    const promise2 = api.__bulk.confirmDanger('再确认一次');
+    await flush();
+    const backdrop2 = dom.body.children[dom.body.children.length - 1];
+    backdrop2.children[0].children[2].children[1].dispatch('click');
+    assert.equal(await promise2, true, '确认返回 true');
+  } finally {
+    delete globalThis.document;
+  }
 });
 
 test('批量删除：确认后逐条 /delete，完成后退出多选', async () => {
@@ -366,8 +384,6 @@ test('批量删除：确认后逐条 /delete，完成后退出多选', async () 
     calls.push({ url: String(url), body: JSON.parse(options.body) });
     return { status: 200, json: async () => ({ ok: true, deleted: 1, failed: 0, results: [] }) };
   };
-  let asked = '';
-  globalThis.confirm = (message) => { asked = message; return true; };
 
   bulk.enterBulk();
   bulk.state.selected['session-a'] = true;
@@ -375,13 +391,17 @@ test('批量删除：确认后逐条 /delete，完成后退出多选', async () 
   bulk.bulkUpdateBar();
   bulk.bulkDeleteSelected();
   await flush();
+  // 自定义确认框：点「删除」
+  const backdrop = dom.body.children[dom.body.children.length - 1];
+  const actions = backdrop.children[0].children[2];
+  assert.ok(String(actions.children[1].textContent).includes('删除'));
+  actions.children[1].dispatch('click');
+  await flush();
   await flush();
 
-  assert.ok(asked.includes('2'), '确认框应带上数量');
   assert.equal(calls.length, 2, '两个会话各发一次 /delete');
   assert.ok(calls.every((call) => call.url === PREFIX + '/delete'));
   assert.equal(bulk.state.selecting, false, '删完退出多选');
-  delete globalThis.confirm;
   delete globalThis.document;
 });
 
@@ -866,7 +886,9 @@ function makeBulkDom(rowIds) {
       insertBefore(child) { child.parentNode = this; this.children.unshift(child); return child; },
       removeChild(child) { const at = this.children.indexOf(child); if (at >= 0) this.children.splice(at, 1); },
       remove() { if (this.parentNode !== null) this.parentNode.removeChild(this); },
-      addEventListener() {},
+      listeners: {},
+      addEventListener(type, handler) { this.listeners[type] = handler; },
+      dispatch(type) { if (typeof this.listeners[type] === 'function') this.listeners[type]({ target: this, stopPropagation() {} }); },
       querySelector(selector) {
         if (selector === ':scope > .dshsm-check') {
           return this.children.find((child) => child.classList.contains('dshsm-check')) ?? null;
