@@ -103,7 +103,7 @@ test('消息操作行图标：和官方按钮同类，带 hover 名字，点击�
   assert.equal(tree.type, 'button');
   assert.ok(String(tree.props.className).indexOf('dsrw-action') >= 0);
   assert.ok(String(tree.props.className).indexOf('_1KfHza_action') >= 0, '应当复用官方操作按钮类名');
-  assert.equal(tree.props.title, '编辑上次提问并重发');
+  assert.equal(tree.props.title, '编辑消息');
   assert.equal(typeof tree.props.onClick, 'function');
   assert.equal(rewrite.AssistantAction({}), null);
 });
