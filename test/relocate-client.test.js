@@ -1133,8 +1133,9 @@ test('多选底栏：常驻槽组件，没进多选返回 null；进了渲染计
     assert.equal(bar.props.role, 'toolbar');
     assert.equal(textOf(bar.children[0]), '已选 0 个');
     const buttons = collectButtons(bar);
-    assert.deepEqual(buttons.map((b) => textOf(b)), ['取消', '移动']);
-    assert.equal(buttons[1].props.disabled, true, '一个都没选时「移动」禁用');
+    assert.deepEqual(buttons.map((b) => textOf(b)), ['取消', '归档', '移动']);
+    assert.equal(buttons[1].props.disabled, true, '一个都没选时「归档」禁用');
+    assert.equal(buttons[2].props.disabled, true, '一个都没选时「移动」禁用');
 
     harness.api.__bulk.state.selected[SESSION_ID] = true;
     harness.api.__bulk.bulkUpdateBar();
@@ -1142,6 +1143,67 @@ test('多选底栏：常驻槽组件，没进多选返回 null；进了渲染计
 
     harness.api.__bulk.exitBulk();
     assert.deepEqual(added[added.length - 1], ['remove', 'dshsm-selecting'], '退出时摘掉标记');
+  } finally {
+    delete globalThis.document;
+  }
+});
+
+test('Ctrl/⌘ + 左键点会话行切换多选（菜单里不再有「多选」）', async () => {
+  const { doc } = makeFakeDocument();
+  doc.body.classList = { add() {}, remove() {} };
+  globalThis.document = doc;
+  try {
+    const harness = await mount({});
+    const api = harness.api.__bulk;
+    api.exitBulk();
+    const row = {
+      getAttribute: (name) => (name === 'data-row-key' ? 'session:' + SESSION_ID : null),
+      parentElement: null,
+    };
+    let prevented = 0;
+    const ctrlClick = {
+      button: 0,
+      ctrlKey: true,
+      target: row,
+      preventDefault() { prevented += 1; },
+      stopPropagation() {},
+    };
+    api.onModifierClick(ctrlClick);
+    assert.equal(api.state.selecting, true, '第一次 Ctrl+点击应当进入多选模式');
+    assert.equal(api.state.selected[SESSION_ID], true);
+    assert.equal(prevented, 1, '必须吃掉这次点击，别把会话打开');
+
+    api.onModifierClick(ctrlClick);
+    assert.equal(api.state.selected[SESSION_ID], undefined, '再点一次取消选中');
+    assert.equal(api.state.selecting, true, '取消到 0 个仍留在多选模式，方便继续点');
+
+    api.onModifierClick({ button: 0, ctrlKey: false, target: row });
+    assert.equal(api.state.selected[SESSION_ID], undefined, '没按 Ctrl 的点击不参与多选');
+    api.exitBulk();
+  } finally {
+    delete globalThis.document;
+  }
+});
+
+test('批量归档：逐条调用宿主归档接口，完成后退出多选', async () => {
+  const { doc } = makeFakeDocument();
+  doc.body.classList = { add() {}, remove() {} };
+  globalThis.document = doc;
+  try {
+    const harness = await mount({});
+    const api = harness.api.__bulk;
+    api.exitBulk();
+    const archived = [];
+    api.setArchiveFn(async (id) => { archived.push(id); });
+    api.enterBulk();
+    api.state.selected[SESSION_ID] = true;
+    api.state.selected[OTHER_SESSION] = true;
+    api.bulkArchiveSelected();
+    await flush();
+    await flush();
+    assert.deepEqual(archived.sort(), [SESSION_ID, OTHER_SESSION].sort(), '两条都应当被归档');
+    assert.equal(api.state.selecting, false, '归档完退出多选');
+    api.setArchiveFn(null);
   } finally {
     delete globalThis.document;
   }
