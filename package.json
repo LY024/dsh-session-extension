@@ -1,11 +1,14 @@
 {
   "name": "dsh-session-extension",
-  "version": "0.1.0",
-  "description": "会话重发增强：在对话里编辑「上一次提问」后重新发送（类 Codex 的 edit-and-resend），并提供一个左侧栏「会话重发台」页面。重发走 DSH 原生 fork：原会话原样保留，新分支从那条消息之前开始，编辑后的内容直接进入新分支的输入框。",
+  "version": "0.2.0",
+  "description": "会话管理增强：①在对话里编辑「上一次提问」后重新发送（类 Codex 的 edit-and-resend，走 DSH 原生 fork，原会话保留）；②把会话连同日志与工作区归属整体搬到另一个工作区（可自动注册新目录），带崩溃恢复事务，正在打开/正在回答的会话也能搬。入口统一在助手消息下方的小图标里，不占左侧栏。",
   "type": "module",
   "main": "src/plugin.js",
   "exports": {
     ".": "./src/plugin.js",
+    "./relocate": "./src/relocate.js",
+    "./paths": "./src/paths.js",
+    "./zstd": "./src/zstd.js",
     "./last-prompt": "./src/last-prompt.js",
     "./client": "./lib/client.js",
     "./package.json": "./package.json"
@@ -29,6 +32,7 @@
       "inject": [
         "@deepseek-ai/dsh-client-ui-slots",
         "@deepseek-ai/dsh-client-ui-conversation",
+        "@deepseek-ai/dsh-client-ui-chat",
         "@deepseek-ai/dsh-api-session-controller",
         "@deepseek-ai/dsh-client-ui-workspace",
         "@deepseek-ai/dsh-client-locale"
@@ -60,6 +64,8 @@
     "edit",
     "resend",
     "fork",
+    "workspace",
+    "move",
     "codex"
   ],
   "license": "GPL-3.0-or-later",
