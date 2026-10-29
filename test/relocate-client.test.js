@@ -175,14 +175,17 @@ test('bundle 形状：id/工厂/导出与 slot 注册都对', async () => {
 
 test('idle：只渲染一个可点的菜单项「移动」，悬停就展开子菜单', async () => {
   const harness = await mount({});
-  const buttons = harness.buttons(harness.render());
+  const tree = harness.render();
+  assert.equal(tree.type, 'div');
+  assert.equal(tree.props.className, 'dshsm-entry', '菜单项外面有一个定位容器，子菜单渲染在里面');
+  assert.equal(typeof tree.props.onMouseEnter, 'function', '悬停应当打开右侧子菜单');
+  assert.equal(typeof tree.props.onMouseLeave, 'function', '移开应当收起子菜单');
+  const buttons = harness.buttons(tree);
   assert.equal(buttons.length, 1);
   assert.equal(buttons[0].props.role, 'menuitem');
   assert.equal(buttons[0].props.type, 'button');
   assert.equal(buttons[0].props.disabled, undefined);
   assert.ok(textOf(buttons[0]).includes('移动'));
-  assert.equal(typeof buttons[0].props.onMouseEnter, 'function', '悬停应当打开右侧子菜单');
-  assert.equal(typeof buttons[0].props.onMouseLeave, 'function', '移开应当收起子菜单');
 });
 
 test('「移动」在右侧子菜单里列出其它工作区（排除当前的），并可选中执行', async () => {
@@ -207,8 +210,8 @@ test('「移动」在右侧子菜单里列出其它工作区（排除当前的�
   assert.deepEqual(state.targets.map((workspace) => workspace.id), ['ws-b', 'ws-c']);
 
   const menu = harness.api.__moveMenu.host();
-  assert.equal(menu.props.className, 'dshsm-move-menu');
-  assert.match(String(menu.props.style.left), /px$/, '子菜单按触发元素定位');
+  assert.ok(String(menu.props.className).includes('dshsm-move-menu'));
+  assert.equal(menu.props.role, 'menu');
   const items = harness.buttons(menu);
   const texts = items.map(textOf);
   assert.equal(texts.some((entry) => entry.includes('工作区 A')), false, '当前工作区不该出现在候选里');
@@ -866,10 +869,8 @@ test('批量：apply 把契约合并进引导全局（不覆盖 prefix），并�
     'conversation.chat.assistant-actions',
     'conversation.input.dock',
     'shell.overlay',
-    // 0.3.3：「移动」的右侧子菜单宿主。
-    'shell.overlay',
-  ], '八处注入：页脚底栏 + 行配置页 + 包配置页 + 会话菜单 + 重发图标/消费者/弹窗 + 移动子菜单（工作区 chip 已移除）');
-  assert.equal(registered, 8, '八个 slot 各注入一次');
+  ], '七处注入：页脚底栏 + 行配置页 + 包配置页 + 会话菜单 + 重发图标/消费者/弹窗（工作区 chip 已移除）');
+  assert.equal(registered, 7, '七个 slot 各注入一次');
   delete globalThis.document;
 });
 
